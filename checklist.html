@@ -1,0 +1,463 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Java Backend Checklist Dashboard</title>
+  <style>
+    :root{
+      --bg:#0f1720; --panel:#0b1220; --muted:#94a3b8; --accent:#06b6d4;
+      --good:#16a34a; --danger:#ef4444; --card:#0f1720;
+      --glass: rgba(255,255,255,0.03);
+      --radius:12px;
+      --gap:14px;
+      font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%; margin:0; background:linear-gradient(180deg,#071019 0%, #07121a 100%); color:#e6eef6}
+    .wrap{max-width:1100px; margin:28px auto; padding:20px;}
+    header{display:flex; gap:16px; align-items:center; justify-content:space-between; margin-bottom:18px}
+    h1{font-size:20px; margin:0; letter-spacing:-0.2px}
+    .sub{color:var(--muted); font-size:13px}
+    .controls{display:flex; gap:10px; align-items:center}
+    .search{background:var(--panel); border:1px solid rgba(255,255,255,0.03); padding:8px 10px; border-radius:10px; color:inherit}
+    .btn{background:var(--accent); color:#042027; padding:8px 12px; border-radius:10px; border:none; cursor:pointer; font-weight:600}
+    .btn.secondary{background:transparent; border:1px solid rgba(255,255,255,0.04); color:var(--muted)}
+    .grid{display:grid; grid-template-columns: 1fr 360px; gap:18px;}
+    @media(max-width:960px){ .grid{grid-template-columns:1fr} }
+
+    /* Left panel */
+    .panel{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); padding:18px; border-radius:var(--radius); box-shadow: 0 6px 30px rgba(2,6,23,0.6);}
+    .section{background:var(--glass); margin-bottom:14px; border-radius:10px; overflow:hidden; border:1px solid rgba(255,255,255,0.02);}
+    .section summary{list-style:none; display:flex; align-items:center; justify-content:space-between; gap:12px; cursor:pointer; padding:12px 16px; font-weight:600; color:#eaf7fb}
+    .section[open] summary{background:linear-gradient(90deg, rgba(255,255,255,0.01), rgba(255,255,255,0.02));}
+    .sec-meta{font-size:13px; color:var(--muted)}
+    .items{padding:10px 16px 16px 16px; display:grid; gap:8px;}
+
+    label.item{
+      display:flex; gap:12px; align-items:center; padding:8px; border-radius:8px; cursor:pointer;
+      background:transparent; transition:background .12s;
+    }
+    label.item:hover{background:rgba(255,255,255,0.01)}
+    input[type="checkbox"]{width:18px; height:18px; accent-color:var(--accent); cursor:pointer; flex:0 0 18px}
+    .item-text{font-size:14px; color:#e6eef6}
+    .muted{font-size:12px; color:var(--muted)}
+
+    /* right panel */
+    .right{display:flex; flex-direction:column; gap:12px}
+    .card{background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.00)); padding:16px; border-radius:12px; border:1px solid rgba(255,255,255,0.02)}
+    .progress-wrap{display:flex; flex-direction:column; gap:10px}
+    .progress-bar{height:14px; background:rgba(255,255,255,0.03); border-radius:8px; overflow:hidden}
+    .progress-fill{height:100%; width:0%; background:linear-gradient(90deg,var(--accent),#7dd3fc); transition:width .25s}
+    .stat{display:flex; justify-content:space-between; font-size:13px; color:var(--muted)}
+    .controls-small{display:flex; gap:8px; flex-wrap:wrap}
+    .link{color:var(--accent); text-decoration:none; font-weight:600}
+
+    footer{margin-top:16px; text-align:center; color:var(--muted); font-size:13px}
+    .small{font-size:12px; color:var(--muted)}
+
+    /* mobile */
+    @media(max-width:520px){
+      header{flex-direction:column; align-items:flex-start; gap:10px}
+      .controls{width:100%; justify-content:space-between}
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+
+    <header>
+      <div>
+        <h1>Java Backend Checklist — Dashboard</h1>
+        <div class="sub">7 Sections • Track progress • Export / Import • Save locally</div>
+      </div>
+
+      <div class="controls">
+        <input id="search" class="search" placeholder="Search checklist items..." />
+        <button id="exportBtn" class="btn secondary">Export</button>
+        <button id="importBtn" class="btn secondary">Import</button>
+        <button id="resetBtn" class="btn">Reset</button>
+      </div>
+    </header>
+
+    <div class="grid">
+      <!-- LEFT: checklist -->
+      <div class="panel" id="left-panel">
+
+        <!-- sections will be injected here -->
+      </div>
+
+      <!-- RIGHT: progress, stats -->
+      <div class="right">
+        <div class="card">
+          <div style="display:flex; justify-content:space-between; align-items:center">
+            <div>
+              <div style="font-weight:700">Overall Progress</div>
+              <div class="small muted">Complete the checklist to become job-ready</div>
+            </div>
+            <div id="overallPercent" style="font-weight:800; font-size:18px">0%</div>
+          </div>
+
+          <div class="progress-wrap" style="margin-top:12px">
+            <div class="progress-bar"><div id="overallBar" class="progress-fill"></div></div>
+            <div class="stat"><span id="completedCount">0</span> / <span id="totalCount">0</span> items completed</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div style="font-weight:700; margin-bottom:8px">Per-section Progress</div>
+          <div id="sectionProgressList"></div>
+        </div>
+
+        <div class="card">
+          <div style="font-weight:700; margin-bottom:8px">Quick Actions</div>
+          <div class="controls-small">
+            <button id="markAll" class="btn secondary">Mark visible done</button>
+            <button id="unmarkAll" class="btn secondary">Unmark visible</button>
+            <button id="openAll" class="btn secondary">Expand all</button>
+            <button id="closeAll" class="btn secondary">Collapse all</button>
+          </div>
+          <div style="margin-top:8px" class="small muted">Tip: use search to filter items, then use "Mark visible done" to quickly progress.</div>
+        </div>
+
+        <div class="card">
+          <div style="font-weight:700; margin-bottom:8px">Save / Load</div>
+          <div class="small muted">Export your progress as JSON or Import to restore.</div>
+          <pre id="exportArea" style="display:none; word-break:break-all; font-size:12px; color:var(--muted);"></pre>
+        </div>
+
+      </div>
+    </div>
+
+    <footer>Checklist generated from your Java Backend roadmap — everything required to be job-ready.</footer>
+  </div>
+
+<script>
+/* ====== DATA: 7 sections and items (expanded and trackable) ====== */
+const SECTIONS = [
+  {
+    id: "core-java",
+    title: "1. Core Java",
+    items: [
+      "Data types", "Variables", "Operators", "Type casting", "Input/Output",
+      "if/else", "switch", "for loop", "while loop", "do-while",
+      "Classes & Objects", "Constructors", "this & super", "Access modifiers", "Static & Final",
+      "Inheritance", "Polymorphism", "Abstract classes", "Interfaces", "Encapsulation",
+      "ArrayList", "LinkedList", "HashSet", "TreeSet", "HashMap", "TreeMap",
+      "Queue / Deque", "Iterator", "Comparable", "Comparator",
+      "Strings", "StringBuilder", "equals() & hashCode()", "Generics", "Enums", "Wrapper classes",
+      "try/catch", "finally", "throw vs throws", "Custom exceptions",
+      "File read", "File write", "BufferedReader/Writer",
+      "Thread class", "Runnable", "Synchronization", "ExecutorService"
+    ]
+  },
+  {
+    id: "sql-db",
+    title: "2. SQL & Databases",
+    items: [
+      "SELECT", "WHERE", "ORDER BY", "GROUP BY", "HAVING",
+      "JOINS (Inner)", "JOINS (Left)", "JOINS (Right)",
+      "Primary Key", "Foreign Key", "Index", "Normalization (1NF/2NF/3NF)",
+      "Create table", "Insert", "Update", "Delete", "Joins in practice", "Constraints (UNIQUE/NOT NULL/DEFAULT)"
+    ]
+  },
+  {
+    id: "spring-boot",
+    title: "3. Spring Boot",
+    items: [
+      "What is Spring Boot", "Dependency Injection", "@Component", "@Autowired",
+      "@Service", "@Repository", "@RestController", "@RequestMapping",
+      "@GetMapping", "@PostMapping", "@PutMapping", "@DeleteMapping",
+      "Path variables", "Query params", "Request body", "ResponseEntity",
+      "@Entity", "@Id", "@GeneratedValue", "@Column", "@OneToMany", "@ManyToOne",
+      "JpaRepository CRUD", "Paging & Sorting", "application.properties",
+      "MySQL connection", "H2 database", "Schema creation", "Data initialization",
+      "Validations (@NotNull/@Size/@Pattern/@Email)", "@Valid usage",
+      "@RestControllerAdvice", "@ExceptionHandler", "Custom exception responses",
+      "JWT basics", "Create JWT token", "Validate JWT token", "Authentication filter",
+      "Register API", "Login API", "Maven build", "Create JAR", "Deploy to Render"
+    ]
+  },
+  {
+    id: "git",
+    title: "4. Git & GitHub",
+    items: [
+      "git init", "git add", "git commit", "git push", "git pull", "git clone",
+      "git branch", "git checkout", "git merge", "git status", "git log",
+      "Fork project", "Create issue", "Create PR", "Resolve conflicts", "Add README"
+    ]
+  },
+  {
+    id: "open-source",
+    title: "5. Open Source",
+    items: [
+      "Read README & CONTRIBUTING", "Run project locally", "Find an issue", "Fix a bug",
+      "Improve documentation", "Write tests (optional)", "Submit PR", "Respond to review",
+      "Follow maintainers' guidelines"
+    ]
+  },
+  {
+    id: "projects",
+    title: "6. Projects (Build & Deploy)",
+    items: [
+      "Project 1 - CRUD API (Design endpoints)", "Project 1 - Implement Register/Login",
+      "Project 1 - Implement JWT Auth", "Project 1 - CRUD endpoints", "Project 1 - MySQL integration",
+      "Project 1 - Deploy live", "Project 2 - Advanced API (Design)", "Project 2 - Pagination",
+      "Project 2 - Filters & Search", "Project 2 - Role-based access", "Project 2 - Analytics (basic)",
+      "Project 2 - Deploy live", "Project 3 - Idea selection", "Project 3 - API design",
+      "Project 3 - Implement core logic", "Project 3 - Document API", "Project 3 - Deploy live"
+    ]
+  },
+  {
+    id: "coding-practice",
+    title: "7. Coding Practice",
+    items: [
+      "Arrays problems", "Strings problems", "Two pointers", "Sliding window", "Hashmap problems",
+      "Stack problems", "Queue problems", "Linked List problems", "Binary Tree problems",
+      "DFS & BFS", "Binary Search", "Dynamic Programming (5 patterns)",
+      "Solve 30 Codeforces A problems", "Solve 20 Codeforces B problems"
+    ]
+  }
+];
+
+/* ====== UI Helpers ====== */
+const leftPanel = document.getElementById('left-panel');
+const overallBar = document.getElementById('overallBar');
+const overallPercent = document.getElementById('overallPercent');
+const completedCountEl = document.getElementById('completedCount');
+const totalCountEl = document.getElementById('totalCount');
+const sectionProgressList = document.getElementById('sectionProgressList');
+const searchInput = document.getElementById('search');
+const exportBtn = document.getElementById('exportBtn');
+const importBtn = document.getElementById('importBtn');
+const resetBtn = document.getElementById('resetBtn');
+const markAllBtn = document.getElementById('markAll');
+const unmarkAllBtn = document.getElementById('unmarkAll');
+const openAllBtn = document.getElementById('openAll');
+const closeAllBtn = document.getElementById('closeAll');
+
+let ITEM_ID_ORDER = []; // store order of checkbox ids for persistence & counts
+
+/* ====== Build DOM from SECTIONS ====== */
+function buildUI(){
+  leftPanel.innerHTML = '';
+  ITEM_ID_ORDER = [];
+
+  SECTIONS.forEach(sec => {
+    const secEl = document.createElement('details');
+    secEl.className = 'section';
+    secEl.id = 'section-' + sec.id;
+
+    const summary = document.createElement('summary');
+    summary.innerHTML = `<div>${sec.title}</div><div class="sec-meta" id="meta-${sec.id}">0 / ${sec.items.length}</div>`;
+    secEl.appendChild(summary);
+
+    const itemsDiv = document.createElement('div');
+    itemsDiv.className = 'items';
+
+    sec.items.forEach((it, idx) => {
+      const id = `${sec.id}--${idx}`;
+      ITEM_ID_ORDER.push(id);
+
+      const label = document.createElement('label');
+      label.className = 'item';
+      label.setAttribute('data-text', it.toLowerCase());
+
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.id = id;
+
+      const span = document.createElement('div');
+      span.className = 'item-text';
+      span.textContent = it;
+
+      label.appendChild(checkbox);
+      label.appendChild(span);
+      itemsDiv.appendChild(label);
+
+      // click on label toggles checkbox (native) - no additional handler needed
+    });
+
+    secEl.appendChild(itemsDiv);
+    leftPanel.appendChild(secEl);
+  });
+
+  // set total count
+  totalCountEl.textContent = ITEM_ID_ORDER.length;
+}
+
+/* ====== Persistence (localStorage) ====== */
+const STORAGE_KEY = 'java-backend-checklist-v1';
+
+function saveState(){
+  const state = {};
+  ITEM_ID_ORDER.forEach(id => {
+    const el = document.getElementById(id);
+    if(el) state[id] = el.checked;
+  });
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+function loadState(){
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if(!raw) return;
+  try{
+    const state = JSON.parse(raw);
+    ITEM_ID_ORDER.forEach(id => {
+      const el = document.getElementById(id);
+      if(el && state.hasOwnProperty(id)) el.checked = !!state[id];
+    });
+  }catch(e){
+    console.warn('Invalid saved state', e);
+  }
+}
+
+/* ====== Progress calculations and UI update ====== */
+function updateProgress(){
+  const total = ITEM_ID_ORDER.length;
+  let done = 0;
+
+  // per-section summary
+  sectionProgressList.innerHTML = '';
+  SECTIONS.forEach(sec => {
+    const totalSec = sec.items.length;
+    let doneSec = 0;
+    sec.items.forEach((_, idx) => {
+      const id = `${sec.id}--${idx}`;
+      const el = document.getElementById(id);
+      if(el && el.checked) doneSec++;
+    });
+
+    // build section progress UI
+    const row = document.createElement('div');
+    row.style.marginBottom = '8px';
+    row.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <div style="font-weight:700;font-size:13px">${sec.title.replace(/^\d+\.\s*/,'')}</div>
+        <div class="muted">${doneSec} / ${totalSec}</div>
+      </div>
+      <div class="progress-bar"><div style="width:${Math.round(doneSec/totalSec*100)}%" class="progress-fill"></div></div>
+    `;
+    sectionProgressList.appendChild(row);
+
+    done += doneSec;
+
+    // update meta in section header
+    const meta = document.getElementById('meta-' + sec.id);
+    if(meta) meta.textContent = `${doneSec} / ${totalSec}`;
+  });
+
+  const percent = total === 0 ? 0 : Math.round((done / total) * 100);
+  overallBar.style.width = percent + '%';
+  overallPercent.textContent = percent + '%';
+  completedCountEl.textContent = done;
+  totalCountEl.textContent = total;
+}
+
+/* ====== Event wiring ====== */
+function bindEvents(){
+  // checkbox change -> save + update
+  ITEM_ID_ORDER.forEach(id => {
+    const el = document.getElementById(id);
+    if(!el) return;
+    el.addEventListener('change', () => {
+      saveState();
+      updateProgress();
+    });
+  });
+
+  // search
+  searchInput.addEventListener('input', () => {
+    const q = searchInput.value.trim().toLowerCase();
+    document.querySelectorAll('.item').forEach(label => {
+      const text = label.getAttribute('data-text') || '';
+      label.style.display = text.includes(q) ? 'flex' : 'none';
+    });
+  });
+
+  // export
+  exportBtn.addEventListener('click', () => {
+    const raw = localStorage.getItem(STORAGE_KEY) || '{}';
+    const blob = new Blob([raw], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'progress-java-backend.json';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  });
+
+  // import
+  importBtn.addEventListener('click', () => {
+    const inp = document.createElement('input');
+    inp.type = 'file';
+    inp.accept = 'application/json';
+    inp.onchange = (e) => {
+      const f = e.target.files[0];
+      if(!f) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try{
+          const obj = JSON.parse(reader.result);
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(obj));
+          loadState();
+          updateProgress();
+          bindEvents(); // rebind if necessary
+          alert('Imported progress successfully');
+        }catch(err){
+          alert('Invalid JSON file');
+        }
+      };
+      reader.readAsText(f);
+    };
+    inp.click();
+  });
+
+  // reset
+  resetBtn.addEventListener('click', () => {
+    if(!confirm('Clear all progress? This cannot be undone.')) return;
+    localStorage.removeItem(STORAGE_KEY);
+    ITEM_ID_ORDER.forEach(id => {
+      const el = document.getElementById(id);
+      if(el) el.checked = false;
+    });
+    updateProgress();
+  });
+
+  // quick actions
+  markAllBtn.addEventListener('click', () => {
+    document.querySelectorAll('.item').forEach(l => {
+      if(l.style.display === 'none') return;
+      const cb = l.querySelector('input[type=checkbox]');
+      if(cb) cb.checked = true;
+    });
+    saveState(); updateProgress();
+  });
+  unmarkAllBtn.addEventListener('click', () => {
+    document.querySelectorAll('.item').forEach(l => {
+      if(l.style.display === 'none') return;
+      const cb = l.querySelector('input[type=checkbox]');
+      if(cb) cb.checked = false;
+    });
+    saveState(); updateProgress();
+  });
+  openAllBtn.addEventListener('click', () => {
+    document.querySelectorAll('.section').forEach(s => s.open = true);
+  });
+  closeAllBtn.addEventListener('click', () => {
+    document.querySelectorAll('.section').forEach(s => s.open = false);
+  });
+}
+
+/* ====== Init ====== */
+(function init(){
+  buildUI();
+  loadState();
+  bindEvents();
+  updateProgress();
+})();
+</script>
+</body>
+</html>
